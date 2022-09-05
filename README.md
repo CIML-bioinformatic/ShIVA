@@ -2,22 +2,18 @@
 
 Rudy Aussel <sup>1</sup>, Muhammad Asif <sup>2</sup>, Sabrina Chenag <sup>1</sup>, Sébastien Jaeger <sup>1,2</sup>, Pierre Milpied <sup>1,2</sup> and Lionel Spinelli <sup>1,2,&</sup> 
 
-1 Centre d’Immunologie de Marseille-Luminy (CIML), Aix Marseille Université, INSERM, CNRS, Marseille, France
-
-2 Turing Centre For Living Systems (CENTURI), Marseille, France
-
-& E-mail:  spinelli_at_ciml.univ-mrs.fr
+<sup>1</sup> Centre d’Immunologie de Marseille-Luminy (CIML), Aix Marseille Université, INSERM, CNRS, Marseille, France
+<sup>2</sup> Turing Centre For Living Systems (CENTURI), Marseille, France
+<sup>&</sup> E-mail:  spinelli_at_ciml.univ-mrs.fr
 
 ## Abstract
 
 Single-cell technologies have revolutionised biological research and applications. As they continue to advance, from multi-modal to spatial capture, analysing this data is becoming increasingly complex. For biologists lacking expert data analysis resources, the problem is increasingly crucial, even for the simplest transcriptomic data. While tools to simplify the analysis of these data exist, many still require a good understanding of the analysis workflow to be used.
 We propose ShIVA, an interface for the analysis of single-cell RNA-seq and CITE-seq data specifically dedicated to biologists. Intuitive, iterative, documented by video tutorials, ShIVA allows the biologist to follow a robust and reproducible analysis process, to fully explore and quantify his or her dataset, to produce useful figures and tables and to export his or her work to allow more complex analysis performed by experts. 
 
-
 ## Tutorials
 
 A complete series of tutorial videos is available on the CB2M YouTube channel : [CB2M YouTube Channel](https://www.youtube.com/channel/UCJJ3Svi8AY6XGx4Y9r9G3Iw/playlists).
-
 
 ## Installation
 
@@ -66,9 +62,9 @@ This folder path will be called PATH_TO_OUTPUT below.
 
 3. Run the following command, changing the path of the ShIVA output folder (PATH_TO_OUTPUT) to the chosen value: 
 
-'''{bash}
+```
 docker run --rm --name shiva -d -p 3838:3838 -e USER=$(whoami) -v PATH_TO_OUTPUT:/root/Shiva/Output cb2m/shiva
-'''
+```
 
 for instance, with the example above : 
 
@@ -93,9 +89,9 @@ This folder path will be called PATH_TO_OUTPUT below.
 
 3. Run the following command, changing the path of the ShIVA output folder (PATH_TO_OUTPUT) to the chosen value: 
 
-'''{bash}
+```
 docker run --rm --name shiva -d -p 3838:3838 -e USER=$(whoami) -v PATH_TO_OUTPUT:/root/Shiva/Output cb2m/shiva
-'''
+```
 
 for instance, with the example above : 
 
