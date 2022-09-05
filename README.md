@@ -1,6 +1,6 @@
 # ShIVA – A user-friendly and interactive interface giving biologists control over their single-cell RNA-seq data 
 
-Rudy Aussel <sup>1</sup>, Muhammad Asif^2^, Sabrina Chenag^1^, Sébastien Jaeger^1,2^, Pierre Milpied^1,2^ and Lionel Spinelli^1,2,&^ 
+Rudy Aussel <sup>1</sup>, Muhammad Asif <sup>2</sup>, Sabrina Chenag <sup>1</sup>, Sébastien Jaeger <sup>1,2</sup>, Pierre Milpied <sup>1,2</sup> and Lionel Spinelli <sup>1,2,&</sup> 
 
 1 Centre d’Immunologie de Marseille-Luminy (CIML), Aix Marseille Université, INSERM, CNRS, Marseille, France
 
