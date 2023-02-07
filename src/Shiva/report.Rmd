@@ -1,0 +1,1371 @@
+---
+title: "ShiVA analysis report"
+output:
+  html_document: 
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+    toc_depth: 2
+    fig_width: 10
+    fig_height: 7
+date: "`r Sys.time()`"
+params:
+  dt: NA
+
+---
+
+```{r, echo=FALSE, message = FALSE, , include=FALSE, warning=FALSE}
+library(dplyr)
+library(Seurat)
+library(patchwork)
+# library(loomR)
+library(ggplot2)
+# library(rpivotTable)
+# library(reactable)
+library(shiny)
+library(webshot)
+library(shinydashboard)
+library(gplots)
+library(scales)
+library(shinyFiles)
+library(shinybusy)
+library(dplyr)
+library(shinycssloaders)
+library(DT)
+library(plotly)
+library(Seurat)
+library(reshape2)
+library(reshape)
+library(stringr)
+library(corrplot)
+library(shinyWidgets)
+library(biomaRt)
+library(pheatmap)
+library(heatmaply)
+# library(shinythemes)
+library(cowplot)
+library(knitr)
+
+# library(SeuratDisk) # required for connect function
+
+##### functions
+# 
+# 
+# df_qc_plot <- function(seu_object, color_factor, nCount_col, nfeat_col, qc_val_list){
+#   #"create the dataframe to plt qc plots"
+#   
+#   temp_df5 <- data.frame(row.names = rownames(seu_object@meta.data))
+#   temp_df5["Cells_to_conserved"] = TRUE
+#   temp_df5["Ident"] = seu_object@meta.data[,color_factor]
+#   
+#   if(nCount_col %in% colnames(seu_object@meta.data)){
+#     temp_df5["nCount_RNA"] <- seu_object@meta.data[,nCount_col]
+#     to_remove_ncount = which(temp_df5$nCount_RNA < qc_val_list[3] | temp_df5$nCount_RNA > qc_val_list[4])
+#     }else{
+#       to_remove_ncount = NULL
+#       }
+#   
+#   if(nfeat_col %in% colnames(seu_object@meta.data)){
+#     temp_df5["nFeature_RNA"] <- seu_object@meta.data[,nfeat_col]
+#     to_remove_nfeat = which(temp_df5$nFeature_RNA < qc_val_list[1] | temp_df5$nFeature_RNA > qc_val_list[2])
+#     }else{
+#       to_remove_nfeat = NULL
+#       }
+#   
+#   if("percent.ribo" %in% colnames(seu_object@meta.data)){
+#     
+#     temp_df5$percent.ribo <- seu_object@meta.data[,"percent.ribo"]
+#     to_remove5_rib = which(temp_df5$percent.ribo < qc_val_list[7] | temp_df5$percent.ribo > qc_val_list[8])
+#   }else{
+#     to_remove5_rib = NULL
+#   }
+#   
+#   if("percent.mito" %in% colnames(seu_object@meta.data)){
+#     temp_df5$percent.mito <- seu_object@meta.data[,"percent.mito"]
+#     to_remove5_mito = which(temp_df5$percent.mito < qc_val_list[5] | temp_df5$percent.mito > qc_val_list[6])
+#   }else{
+#     to_remove5_mito = NULL
+#   }
+#   
+#   to_remove5 <- unique(c(to_remove_ncount,to_remove_nfeat,to_remove5_mito,to_remove5_rib))
+#   
+#   
+#   temp_df5[to_remove5,"Cells_to_conserved"] = FALSE
+#   
+#   return(temp_df5)
+#   }
+
+
+```
+
+
+
+```{r, echo=FALSE,include = FALSE}
+# You need this code to conduct the magic dependences attaching...
+DT::datatable(matrix(),extensions = 'Buttons',  options = list(dom = 'Blfrtip', buttons = c('excel', "csv")))
+```
+
+
+```{r parent,  echo=FALSE, message=FALSE, warning=FALSE, results = "asis"}
+
+  list_parent <- NULL
+  parent <- NULL
+ 
+ if("parent" %in% names(params$dt$parameters[[params$dt$seurat_selected]])){
+    parent <- params$dt$parameters[[params$dt$seurat_selected]][["parent"]]
+    list_parent <- c(setNames(params$dt$parameters[[params$dt$seurat_selected]][["after_step"]],parent))
+  }else{
+    parent <- NULL
+  }
+
+
+while(!is.null(parent)){
+  
+  current <- parent
+  
+  if("parent" %in% names(params$dt$parameters[[parent]])){
+    parent <- params$dt$parameters[[parent]][["parent"]]
+    list_parent <- c(setNames(params$dt$parameters[[current]][["after_step"]],parent), list_parent)
+  }else{
+    parent <- NULL
+  }
+
+}
+
+  
+             
+
+  
+if(!is.null(list_parent)){
+  
+  for(pos_names in 1:length(names(list_parent))){
+    
+  seu_to_display = names(list_parent)[pos_names]
+  
+  cat("# ", seu_to_display, '{.tabset} \n')
+  
+    all_steps <- unique(params$dt$parameters[[seu_to_display]][["steps"]])
+
+    number_step = 1
+    step = all_steps[number_step]
+    
+    while(step != list_parent[[seu_to_display]] & !is.na(step)){
+
+      if(step == "import"){
+
+        cat('\n', '<br>', '\n\n')
+
+        cat("## Import {.tabset} \n")
+        
+        if("ADT" %in% Assays(params$dt$seurat)){
+  
+          cat("<strong> ADT </strong> : ")
+          cat(paste(rownames(params$dt$seurat[["ADT"]]), collapse=", " ,sep=""))
+          cat("<br>")
+        
+        }
+        
+        if("HTO" %in% Assays(params$dt$seurat)){
+          
+          cat("<strong> HTO </strong> : ")
+          cat(paste0(rownames(params$dt$seurat[["HTO"]]), collapse=", " ,sep=""))
+          cat("<br>")
+          
+        }
+
+        cat(paste0("<strong> Species </strong> : " , levels(as.factor(params$dt$seurat[["species"]])), " <br>"))
+
+        if(params$dt$norm_assay == "SCT"){
+
+          cat("<strong> Normalization method </strong> : SCTransform (default parameters)")
+          cat("<br>")
+
+        }else{
+
+          cat("<strong> Normalization method </strong> : Log normalization (default parameters)")
+          cat("<br>")
+
+        }
+
+
+      cat(paste0("<strong>Features detected in at least </strong> : " , params$dt$parameters[[seu_to_display]][["min_cells"]], " cells <br>"))
+      cat(paste0("<strong>Cells containing at least </strong> : " , params$dt$parameters[[seu_to_display]][["min_features"]], " features <br>"))
+      
+      cat('\n', '<br>', '\n\n')
+
+      }else if(step == "vg"){
+
+        cat("## Variable genes {.tabset} \n")
+
+        for(vg in names(params$dt$genes_list[[seu_to_display]])){
+
+          if(str_detect(vg, "mean.var.plot") == TRUE){
+
+            cat(paste0("### ", vg, "\n"))
+            cat("<br>")
+
+            cat(paste0("<strong>Method </strong> : mean.var.plot", " <br><br>"))
+
+            cat('\n', '<br>', '\n\n')
+
+          }else if(str_detect(vg, "dispersion") == TRUE){
+
+            cat(paste0("### ", vg, "\n"))
+            cat("<br>")
+
+            nvg <- str_extract(string = vg, pattern = "dispersion_[0-9]+")
+            nvg <- str_extract(string = nvg, pattern = "[0-9]+")
+
+            cat(paste0("<strong>Method </strong> : dispersion", " <br>"))
+            cat(paste0("<strong>Nb variable features</strong> : " , nvg, " <br><br>"))
+
+            cat('\n', '<br>', '\n\n')
+
+          }else if(str_detect(vg, "vst") == TRUE){
+
+            cat(paste0("### ", vg, "\n"))
+            cat("<br>")
+
+            nvg <- str_extract(string = vg, pattern = "vst_[0-9]+")
+            nvg <- str_extract(string = nvg, pattern = "[0-9]+")
+
+            cat(paste0("<strong>Method </strong> : vst", " <br>"))
+            cat(paste0("<strong>Nb variable features</strong> : " , nvg, " <br><br>"))
+
+            cat('\n', '<br>', '\n\n')
+
+            }
+
+          }
+
+        }else if(step == "pca"){
+          
+           pca_names <- names(params$dt$parameters[[seu_to_display]])[str_detect(names(params$dt$parameters[[seu_to_display]]), "^pca")]
+           
+           cat("## PCA {.tabset} \n")
+    
+           for(pca in pca_names){
+      
+             cat(paste0("### ", pca, "\n"))
+             cat("<br>")
+       
+             cat(paste0("<strong>List of genes</strong> : " , params$dt$parameters[[seu_to_display]][[pca]]["genes"], " <br>"))
+             cat(paste0("<strong>PCs calculated</strong> : " , params$dt$parameters[[seu_to_display]][[pca]]["npcs"], " <br>"))
+             cat(paste0("<strong>Variables regressed</strong> : " , params$dt$parameters[[seu_to_display]][[pca]]["regress"], " <br><br>"))
+             
+             cat('\n', '<br>', '\n\n')
+
+           }
+           
+           cat('\n', '<br>', '\n\n')
+          
+        }else if(step == "cluster"){
+          
+          clust_names <- names(params$dt$parameters[[seu_to_display]])[str_detect(names(params$dt$parameters[[seu_to_display]]), "clust")]
+
+          if(length(clust_names) > 0){
+    
+          cat("## Clustering {.tabset} \n")
+
+          for(clust in clust_names){
+      
+             cat(paste0("### ", clust, "\n"))
+             cat("<br>")
+       
+             cat(paste0("<strong>PCA used</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["pca"], " <br>"))
+             cat(paste0("<strong>Number of PCs</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["npcs"], " <br>"))
+             cat(paste0("<strong>Method</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["method"], " <br>"))
+             cat(paste0("<strong>Resolution</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["res"], " <br><br>"))
+       
+             cat('\n', '<br>', '\n\n')
+          }
+        }
+          
+      }else if(step == "gating"){
+        
+        gate_names <- names(params$dt$cell_list[[seu_to_display]])
+
+        if(length(gate_names) > 0){
+    
+         cat("## Gating {.tabset} \n")
+          
+          for(gate in gate_names){
+      
+             cat(paste0("### ", gate, "\n"))
+            
+             cat("<br>")
+             
+             cat("<strong> Manual gating made on plot generated using following parameters</strong> <br>")
+             
+             cat("<br>")
+             
+             for(param in names(params$dt$parameters[[seu_to_display]][[gate]])){
+          
+                cat(paste0("<strong>",  param, "</strong> : " , params$dt$parameters[[seu_to_display]][[gate]][param], " <br>"))
+               
+             }
+             
+             # print(params$dt$parameters[[seu_to_display]][[gate]])
+             # 
+             cat('\n', '<br>', '\n\n')
+             # print(htmltools::tagList(DT::datatable(data.frame(k1 = c(NA,NA,3,4,5), k2 = c(1,NA,NA,4,5), data = 1:5), options = list(orderClasses = F))))
+             print( htmltools::tagList(DT::datatable(as.data.frame(params$dt$cell_list[[seu_to_display]][gate]),
+                                                     rownames = FALSE, extensions = 'Buttons', 
+                                                     caption = 'List of selected cells contained in the manual gating',
+                                                     options = list(dom = 'Blfrtip', buttons = c('excel', "csv")))))
+
+             cat('\n', '<br>', '\n\n')
+
+             # 
+             # cat(paste0("<strong>PCA used</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["pca"], " <br>"))
+             # cat(paste0("<strong>Number of PCs</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["npcs"], " <br>"))
+             # cat(paste0("<strong>Method</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["method"], " <br>"))
+             # cat(paste0("<strong>Resolution</strong> : " , params$dt$parameters[[seu_to_display]][[clust]]["res"], " <br><br>"))
+             # 
+             cat('\n', '<br>', '\n\n')
+          }
+          
+        }
+
+      }
+      
+      
+        number_step = number_step + 1
+        step = all_steps[number_step]
+
+    }
+
+    
+    
+    
+
+    if(!is.na(step)){
+       
+      if(pos_names == length(names(list_parent))){
+        to_display = params$dt$seurat_selected
+      }else{
+        to_display = names(list_parent)[pos_names + 1]
+      }
+
+      if(step == "demux"){
+          
+        cat('\n', '<br>', '\n\n')
+        
+        cat("## Demultiplexing \n")
+        
+        cat(paste0("<strong>Normalization method </strong> : " , params$dt$parameters[[to_display]][["norm_hto"]], "<br>"))
+        cat(paste0("<strong>Quantile used </strong> : " , params$dt$parameters[[to_display]][["hto_quantile"]], "<br><br>"))
+        cat(paste0("<strong>",params$dt$parameters[[to_display]][["rm_cells"]], " cells removed (assigned as doublet or negatives) </strong> <br>"))
+
+        
+      }else if(step == "qc"){
+        
+        cat('\n', '<br>', '\n\n')
+        
+        cat("## Quality control \n")
+        
+        cat(paste0("<strong>Min Features</strong> : " , params$dt$parameters[[to_display]][["min_feat"]], " genes <br>"))
+        cat(paste0("<strong>Max Features</strong> : " , params$dt$parameters[[to_display]][["max_feat"]], " genes <br><br>"))
+        cat(paste0("<strong>Min UMIs</strong> : " , params$dt$parameters[[to_display]][["min_UMI"]], " UMIs <br>"))
+        cat(paste0("<strong>Max UMIs</strong> : " , params$dt$parameters[[to_display]][["max_UMI"]], " UMIs <br><br>"))
+        cat(paste0("<strong>Min % mitochondrial genes by cell</strong> : " , params$dt$parameters[[to_display]][["min_mito"]], " % <br>"))
+        cat(paste0("<strong>Max % mitochondrial genes by cell</strong> : " , params$dt$parameters[[to_display]][["max_mito"]], " % <br><br>"))
+        cat(paste0("<strong>Min % ribosomal genes by cell</strong> : " , params$dt$parameters[[to_display]][["min_ribo"]], " % <br>"))
+        cat(paste0("<strong>Max % ribosomal genes by cell</strong> : " , params$dt$parameters[[to_display]][["max_ribo"]], " % <br><br>"))
+        
+        cat(paste0("<strong>",params$dt$parameters[[to_display]][["rm_cells"]], " cells removed (outliers) </strong> <br>"))
+        
+      }else if(step == "subset"){
+        
+        cat('\n', '<br>', '\n\n')
+        
+        cat("## Subsetting \n")
+        
+        for(param in names(params$dt$parameters[[to_display]][["subset_params"]])){
+          
+          cat(paste0("<strong>",  param, "</strong> : " , params$dt$parameters[[to_display]][["subset_params"]][param], " <br>"))
+        }
+
+        
+        cat(paste0("<br><strong>",params$dt$parameters[[to_display]][["rm_cells"]], " cells removed </strong> <br>"))
+
+      }
+    
+   
+  
+        cat('\n', '<br>', '\n\n')
+     }
+    
+    cat('\n', '<br>', '\n\n')
+  
+  }
+}
+  
+  
+```
+
+
+
+
+```{r current,  echo=FALSE, message=FALSE, warning=FALSE, results = "asis"}
+
+
+cat("#", params$dt$seurat_selected, '{.tabset} \n')
+
+cat(paste0("<strong>Dimensions</strong> : " , ncol(params$dt$seurat[["RNA"]]), " cells x ", nrow(params$dt$seurat[["RNA"]]), " genes <br>"))
+
+
+
+ cat("<br>")
+# seu_obj <- params$dt$seurat
+
+```
+
+
+
+
+```{r demux, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+if("MULTI_ID" %in% colnames(params$dt$seurat@meta.data)){
+  
+  cat("## Number of cells \n")
+  
+  cat("<br>")
+  
+  cat("<strong> Number of cells by HTO </strong> \n")
+  
+  kable(t(as.matrix(table(params$dt$seurat$MULTI_ID))))
+  
+}
+
+```
+
+
+
+
+
+```{r qc, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+cat("## Metrics {.tabset} \n")
+
+#QC plot
+# print(params$dt$parameters)
+# for(i in 1:length(params$dt$parameters[[params$dt$seurat_selected]])){
+#   print(params$dt$parameters[[params$dt$seurat_selected]][i])
+# 
+# }
+# 
+# print(max(params$dt$seurat@meta.data["nFeature_RNA"]))
+
+# min1 <-as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min1"])
+# max1 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max1"])
+# min2 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min2"])
+# max2 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max2"])
+# min3 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min3"])
+# max3 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max3"])
+# min4 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min4"])
+# max4 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max4"])
+# color_factor <- params$dt$parameters[[params$dt$seurat_selected]]["color_factor"]
+
+
+
+# if(is.null(min1)){min1 <-200} else{min1 <-as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min1"])}
+# if(is.null(min1)){max1 <-3400}else{max1 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max1"])}
+# if(is.null(min1)){min2 <-500}else{min2 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min2"])}
+# if(is.null(min1)){max2 <-15900}else{max2 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max2"])}
+# if(is.null(min1)){min3 <-0}else{min3 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min3"])}
+# if(is.null(min1)){max3 <-23}else{max3 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max3"])}
+# if(is.null(min1)){min4 <-0}else{min4 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["min4"])}
+# if(is.null(min1)){max4 <-60}else{max4 <- as.numeric(params$dt$parameters[[params$dt$seurat_selected]]["max4"])}
+
+
+# if(is.na(min1)){min1 < floor(min(params$dt$seurat@meta.data["nFeature_RNA"])/100)*100}
+# if(is.na(max1)){max1 < ceiling(max(params$dt$seurat@meta.data["nFeature_RNA"])/100)*100}
+# if(is.na(min2)){min2 < floor(min(params$dt$seurat@meta.data["nCount_RNA"])/100)*100}
+# if(is.na(max2)){max2 < ceiling(max(params$dt$seurat@meta.data["nCount_RNA"])/100)*100}
+# if(is.na(min3)){min3 <-0}
+# if(is.na(max3)){max3 < ceiling(max(params$dt$seurat$percent.mito))}
+# if(is.na(min4)){min4 <-0}
+# if(is.na(max4)){max4 <-60}
+# if(is.na(color_factor)){color_factor <-"orig.ident"}
+
+
+
+#
+
+
+# nCount_col <- paste0("nCount_",Assays(seu_obj)[1])
+# 
+# nfeat_col <- paste0("nFeature_",Assays(seu_obj)[1])
+# #QC values in a list
+# qc_val_list <- c(min1, max1, min2, max2, min3, max3, min4, max4)
+# #print(qc_val_list)
+# 
+# 
+# #create the dataframe
+#  df_all <- df_qc_plot(seu_obj, color_factor, nCount_col, nfeat_col, qc_val_list)
+# 
+#  head(df_all)
+ #
+# #frist plot
+# p1 <- ggplot(df_all, aes(x=Ident, y=nFeature_RNA)) + geom_violin(aes(fill=Ident)) +
+#   geom_jitter(height = 0, size = 0.15, aes(color = Cells_to_conserved)) +
+#   geom_hline(yintercept =  min1, color = "red", linetype = 2) +
+#   geom_hline(yintercept = max1, color = "red", linetype = 2) +
+#   scale_color_manual(values = c("FALSE" = "grey", "TRUE" = "black"), name="Cells_to_conserved")
+# 
+# #second plot
+# 
+# p2 <- ggplot(df_all, aes(x=Ident, y=nCount_RNA)) + geom_violin(aes(fill=Ident)) +
+#   geom_jitter(height = 0, size = 0.15, aes(color = Cells_to_conserved)) +
+#   geom_hline(yintercept =  min2, color = "red", linetype = 2) +
+#   geom_hline(yintercept = max2, color = "red", linetype = 2) +
+#   scale_color_manual(values = c("FALSE" = "grey", "TRUE" = "black"), name="Cells_to_conserved")
+# 
+# 
+# #third plot
+# p3 <- ggplot(df_all, aes(x=Ident, y=percent.mito)) + geom_violin(aes(fill=Ident)) +
+#   geom_jitter(height = 0, size = 0.15, aes(color = Cells_to_conserved)) +
+#   geom_hline(yintercept =  min3, color = "red", linetype = 2) +
+#   geom_hline(yintercept = max3, color = "red", linetype = 2) +
+#   scale_color_manual(values = c("FALSE" = "grey", "TRUE" = "black"), name="Cells_to_conserved")
+# 
+# #forth plot
+# 
+# p4 <- ggplot(df_all, aes(x=Ident, y=percent.ribo)) + geom_violin(aes(fill=Ident)) +
+#   geom_jitter(height = 0, size = 0.15, aes(color = Cells_to_conserved)) +
+#   geom_hline(yintercept =  min4, color = "red", linetype = 2) +
+#   geom_hline(yintercept = max4, color = "red", linetype = 2) +
+#   scale_color_manual(values = c("FALSE" = "grey", "TRUE" = "black"), name="Cells_to_conserved")
+
+#grid.arrange(p1, p2, p3, p4, respect=TRUE)
+
+
+cat(paste0("<strong>Min Features</strong> : " , min(params$dt$seurat[["nFeature_RNA"]]), " genes <br>"))
+cat(paste0("<strong>Max Features</strong> : " , max(params$dt$seurat[["nFeature_RNA"]]), " genes <br><br>"))
+cat(paste0("<strong>Min UMIs</strong> : " , min(params$dt$seurat[["nCount_RNA"]]), " UMIs <br>"))
+cat(paste0("<strong>Max UMIs</strong> : " , max(params$dt$seurat[["nCount_RNA"]]), " UMIs <br><br>"))
+cat(paste0("<strong>Min % mitochondrial genes by cell</strong> : " , round(min(params$dt$seurat[["percent.mito"]]),2), " % <br>"))
+cat(paste0("<strong>Max % mitochondrial genes by cell</strong> : " , round(max(params$dt$seurat[["percent.mito"]]),2), " % <br><br>"))
+cat(paste0("<strong>Min % ribosomal genes by cell</strong> : " , round(min(params$dt$seurat[["percent.ribo"]]),2), " % <br>"))
+cat(paste0("<strong>Max % ribosomal genes by cell</strong> : " , round(max(params$dt$seurat[["percent.ribo"]]),2), " % <br>"))
+
+cat('\n', '<br>', '\n\n')
+
+cat("### Metrics for all cells \n")
+ 
+  p1 <- ggplot(params$dt$seurat@meta.data, aes(x=params$dt$seurat_selected, y=nFeature_RNA)) + geom_violin(aes(fill=params$dt$seurat_selected)) +
+    geom_jitter(height = 0, size = 0.15) +
+    xlab(" ") +
+    ylab("Nb Genes") +
+    theme(legend.position = "none")
+  
+  p2 <- ggplot(params$dt$seurat@meta.data, aes(x=params$dt$seurat_selected, y=nCount_RNA)) + geom_violin(aes(fill=params$dt$seurat_selected)) +
+    geom_jitter(height = 0, size = 0.15) +
+    xlab(" ") +
+    ylab("Nb UMIs") +
+    theme(legend.position = "none")
+ 
+  p3 <- ggplot(params$dt$seurat@meta.data, aes(x=params$dt$seurat_selected, y=percent.mito)) + geom_violin(aes(fill=params$dt$seurat_selected)) +
+    geom_jitter(height = 0, size = 0.15) +
+    xlab(" ") +
+    ylab("% Mito") +
+    theme(legend.position = "none")
+  
+  p4 <- ggplot(params$dt$seurat@meta.data, aes(x=params$dt$seurat_selected, y=percent.ribo)) + geom_violin(aes(fill=params$dt$seurat_selected)) +
+    geom_jitter(height = 0, size = 0.15) +
+    xlab(" ") +
+    ylab("% Ribo") +
+    theme(legend.position = "none")
+
+CombinePlots(list(p1, p2, p3, p4),nrow = 2)
+
+cat('\n', '<br>', '\n\n')
+
+
+if("MULTI_ID" %in% colnames(params$dt$seurat@meta.data)){
+  
+  cat("### Metrics by HTO \n")
+
+    p1 <- ggplot(params$dt$seurat@meta.data, aes(x=MULTI_ID, y=nFeature_RNA)) + geom_violin(aes(fill=MULTI_ID)) +
+      geom_jitter(height = 0, size = 0.15) +
+      xlab(" ") +
+      ylab("Nb Genes") +
+      theme(legend.position = "none")
+    
+    p2 <- ggplot(params$dt$seurat@meta.data, aes(x=MULTI_ID, y=nCount_RNA)) + geom_violin(aes(fill=MULTI_ID)) +
+      geom_jitter(height = 0, size = 0.15) +
+      xlab(" ") +
+      ylab("Nb UMIs") +
+      theme(legend.position = "none")
+   
+    p3 <- ggplot(params$dt$seurat@meta.data, aes(x=MULTI_ID, y=percent.mito)) + geom_violin(aes(fill=MULTI_ID)) +
+      geom_jitter(height = 0, size = 0.15) +
+      xlab(" ") +
+      ylab("% Mito") +
+      theme(legend.position = "none")
+    
+    p4 <- ggplot(params$dt$seurat@meta.data, aes(x=MULTI_ID, y=percent.ribo)) + geom_violin(aes(fill=MULTI_ID)) +
+      geom_jitter(height = 0, size = 0.15) +
+      xlab(" ") +
+      ylab("% Ribo") +
+      theme(legend.position = "none")
+  
+  CombinePlots(list(p1, p2, p3, p4),nrow = 2)
+
+}
+
+
+  # geom_jitter(height = 0, size = 0.15, aes(color = Cells_to_conserved)) +
+  # geom_hline(yintercept =  min4, color = "red", linetype = 2) +
+  # geom_hline(yintercept = max4, color = "red", linetype = 2) +
+  # scale_color_manual(values = c("FALSE" = "grey", "TRUE" = "black"), name="Cells_to_conserved")
+
+
+#scater plot
+#unable to get it 
+#paramX <- params$dt$parameters[[params$dt$seurat_selected]]["paramX"]
+#paramY <- params$dt$parameters[[params$dt$seurat_selected]]["paramY"] 
+
+# paramX <- "Nb_Gene"
+# paramY <- "Nb_UMI"
+# plot <- ggplot(df_all, aes(x = paramX , y = paramY))
+# 
+# plot <- plot + geom_point(aes(color = df_all[["Cells_to_conserved"]]), size = 0.15)
+# 
+# plot <- plot + xlab(paramX) + ylab(paramY)
+# 
+# plot <- plot + scale_color_manual(values = c("FALSE" = "#D9717D", "TRUE" = "#4DB6D0"), name="Cells_to_conserved")
+# 
+# plot
+
+```
+
+
+
+```{r vg, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+if(!is.null(params$dt$genes_list[[params$dt$seurat_selected]])){
+  
+  cat("## Variable genes {.tabset} \n")
+
+  for(vg in names(params$dt$genes_list[[params$dt$seurat_selected]])){
+    
+    if(str_detect(vg, "mean.var.plot") == TRUE){
+      
+      cat(paste0("### ", vg, "\n"))
+      cat("<br>")
+
+      cat(paste0("<strong>Method </strong> : mean.var.plot", " <br><br>"))
+      
+      seu_temp <- FindVariableFeatures(params$dt$seurat, assay = "RNA", selection.method = "mean.var.plot")
+      
+      
+      if(length(VariableFeatures(seu_temp) > 15)){
+        top <- head(VariableFeatures(seu_temp), 15)
+      }else{
+        top <- VariableFeatures(seu_temp)
+      }
+      
+      print(LabelPoints(VariableFeaturePlot(seu_temp, selection.method = "mean.var.plot"), points = top, repel = TRUE))
+      
+      cat('\n', '<br>', '\n\n')
+      
+      Idents(seu_temp) <- "mean"
+
+      vg <- VariableFeatures(seu_temp, assay = "RNA")
+      
+      # Calculate mean expression of variable genes
+      df_mean <- data.frame(row.names = vg, 
+                            mean = AverageExpression(seu_temp, assay = "RNA", features = vg))
+      
+      df_mean <- round(df_mean, 2)
+
+      # Recuperate perc expr from dotplot function of variable genes
+      perc <- DotPlot(seu_temp, features =  vg, assay = "RNA")
+      perc$data <- perc$data[,c("features.plot","id","pct.exp")]
+      perc <- as.data.frame(cast(perc$data, features.plot ~ id))
+      rownames(perc) <- perc$features.plot
+      perc$features.plot <- NULL
+      perc = round(as.data.frame(perc),2)
+      colnames(perc) <- "pct.cells.express"
+
+      df <- merge(df_mean, perc, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+
+      # Recuperate value of method used for variable genes
+      df_method <- data.frame(row.names = vg,
+                              HVFInfo(seu_temp, assay = "RNA")[vg,3])
+      
+      colnames(df_method) <- colnames(HVFInfo(seu_temp , assay = "RNA"))[3]
+      
+      df_method <- round(df_method, 2)
+
+      df <- merge(df, df_method, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+      
+      df <- df[order(-df[,ncol(df)]),]
+      
+      print( htmltools::tagList(DT::datatable(df,rownames = T, extensions = 'Buttons', 
+                                              options = list(dom = 'Blfrtip', buttons = c('excel', "csv")))))      
+      cat('\n', '<br>', '\n\n')
+
+    }
+    
+    
+    if(str_detect(vg, "dispersion") == TRUE){
+     
+      cat(paste0("### ", vg, "\n"))
+      cat("<br>")
+      
+      nvg <- str_extract(string = vg, pattern = "dispersion_[0-9]+")
+      nvg <- str_extract(string = nvg, pattern = "[0-9]+")
+      
+      cat(paste0("<strong>Method </strong> : dispersion", " <br>"))
+      cat(paste0("<strong>Nb variable features</strong> : " , nvg, " <br><br>"))
+
+      seu_temp <- FindVariableFeatures(params$dt$seurat, assay = "RNA", selection.method = "dispersion", nfeatures = as.numeric(nvg))
+      
+      
+      if(length(VariableFeatures(seu_temp) > 15)){
+        top <- head(VariableFeatures(seu_temp), 15)
+      }else{
+        top <- VariableFeatures(seu_temp)
+      }
+      
+      print(LabelPoints(VariableFeaturePlot(seu_temp, selection.method = "dispersion"), points = top, repel = TRUE))
+      
+      cat('\n', '<br>', '\n\n')
+      
+      Idents(seu_temp) <- "mean"
+
+      vg <- VariableFeatures(seu_temp, assay = "RNA")
+      
+      # Calculate mean expression of variable genes
+      df_mean <- data.frame(row.names = vg, 
+                            mean = AverageExpression(seu_temp, assay = "RNA", features = vg))
+      
+      df_mean <- round(df_mean, 2)
+
+      # Recuperate perc expr from dotplot function of variable genes
+      perc <- DotPlot(seu_temp, features =  vg, assay = "RNA")
+      perc$data <- perc$data[,c("features.plot","id","pct.exp")]
+      perc <- as.data.frame(cast(perc$data, features.plot ~ id))
+      rownames(perc) <- perc$features.plot
+      perc$features.plot <- NULL
+      perc = round(as.data.frame(perc),2)
+      colnames(perc) <- "pct.cells.express"
+
+      df <- merge(df_mean, perc, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+
+      # Recuperate value of method used for variable genes
+      df_method <- data.frame(row.names = vg,
+                              HVFInfo(seu_temp, assay = "RNA")[vg,3])
+      
+      colnames(df_method) <- colnames(HVFInfo(seu_temp , assay = "RNA"))[3]
+      
+      df_method <- round(df_method, 2)
+
+      df <- merge(df, df_method, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+      
+      df <- df[order(-df[,ncol(df)]),]
+      
+      print( htmltools::tagList(DT::datatable(df,rownames = T, extensions = 'Buttons', 
+                                              options = list(dom = 'Blfrtip', buttons = c('excel', "csv")))))
+      
+      cat('\n', '<br>', '\n\n')
+       
+    }
+    
+    
+    
+    if(str_detect(vg, "vst") == TRUE){
+     
+      cat(paste0("### ", vg, "\n"))
+      cat("<br>")
+
+      nvg <- str_extract(string = vg, pattern = "vst_[0-9]+")
+      nvg <- str_extract(string = nvg, pattern = "[0-9]+")
+      
+      cat(paste0("<strong>Method </strong> : vst", " <br>"))
+      cat(paste0("<strong>Nb variable features</strong> : " , nvg, " <br><br>"))
+      
+      seu_temp <- FindVariableFeatures(params$dt$seurat, assay = "RNA", selection.method = "vst", nfeatures = as.numeric(nvg))
+      
+      
+      if(length(VariableFeatures(seu_temp) > 15)){
+        top <- head(VariableFeatures(seu_temp), 15)
+      }else{
+        top <- VariableFeatures(seu_temp)
+      }
+      
+      print(LabelPoints(VariableFeaturePlot(seu_temp, selection.method = "vst"), points = top, repel = TRUE))
+      
+      cat('\n', '<br>', '\n\n')
+      
+      Idents(seu_temp) <- "mean"
+
+      vg <- VariableFeatures(seu_temp, assay = "RNA")
+      
+      # Calculate mean expression of variable genes
+      df_mean <- data.frame(row.names = vg, 
+                            mean = AverageExpression(seu_temp, assay = "RNA", features = vg))
+      
+      df_mean <- round(df_mean, 2)
+
+      # Recuperate perc expr from dotplot function of variable genes
+      perc <- DotPlot(seu_temp, features =  vg, assay = "RNA")
+      perc$data <- perc$data[,c("features.plot","id","pct.exp")]
+      perc <- as.data.frame(cast(perc$data, features.plot ~ id))
+      rownames(perc) <- perc$features.plot
+      perc$features.plot <- NULL
+      perc = round(as.data.frame(perc),2)
+      colnames(perc) <- "pct.cells.express"
+
+      df <- merge(df_mean, perc, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+
+      # Recuperate value of method used for variable genes
+      df_method <- data.frame(row.names = vg,
+                              HVFInfo(seu_temp, assay = "RNA")[vg,3])
+      
+      colnames(df_method) <- colnames(HVFInfo(seu_temp , assay = "RNA"))[3]
+      
+      df_method <- round(df_method, 2)
+
+      df <- merge(df, df_method, by=0, all=TRUE) 
+      
+      rownames(df) <- df$Row.names
+      df$Row.names <- NULL
+      
+      df <- df[order(-df[,ncol(df)]),]
+      
+      cat('\n', '<br>', '\n\n')
+      
+      print( htmltools::tagList(DT::datatable(df, rownames = T, extensions = 'Buttons', 
+                                              options = list(dom = 'Blfrtip', buttons = c('excel', 'csv')))))
+      
+      cat('\n', '<br>', '\n\n')
+       
+    }
+    
+    
+  }
+
+}
+
+```
+
+
+```{r pca, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+  pca_names <- names(params$dt$parameters[[params$dt$seurat_selected]])[str_detect(names(params$dt$parameters[[params$dt$seurat_selected]]), "^pca")]
+
+  seu <- params$dt$seurat
+  Idents(seu) <- params$dt$seurat_selected
+  
+  if(length(pca_names) > 0){
+    
+    cat("## PCA {.tabset} \n")
+
+    for(pca in pca_names){
+      
+       cat(paste0("### ", pca, "\n"))
+       cat("<br>")
+       
+       cat(paste0("<strong>List of genes</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[pca]]["genes"], " <br>"))
+       cat(paste0("<strong>PCs calculated</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[pca]]["npcs"], " <br>"))
+       cat(paste0("<strong>Variables regressed</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[pca]]["regress"], " <br><br>"))
+       
+       cat("<br>")
+       cat("<br>")
+       
+       print(DimPlot(seu, reduction = pca))
+      
+      cat("<br>")
+      cat('\n', '<br>', '\n\n')
+    }
+    
+  
+  }
+
+```
+
+
+
+
+
+```{r tsne, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+ tsne_names <- names(params$dt$parameters[[params$dt$seurat_selected]])[str_detect(names(params$dt$parameters[[params$dt$seurat_selected]]), "tsne")]
+
+  seu <- params$dt$seurat
+  Idents(seu) <- params$dt$seurat_selected
+  
+  if(length(tsne_names) > 0){
+    
+    cat("## tSNE {.tabset} \n")
+
+    for(tsne in tsne_names){
+      
+       cat(paste0("### ", tsne, "\n"))
+       cat("<br>")
+       
+       cat(paste0("<strong>PCA used</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[tsne]]["pca"], " <br>"))
+       cat(paste0("<strong>Number of PCs</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[tsne]]["npcs"], " <br>"))
+       cat(paste0("<strong>Perplexity</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[tsne]]["perp"], " <br><br>"))
+       
+       cat("<br>")
+       cat("<br>")
+       
+       print(DimPlot(seu, reduction = tsne))
+      
+      cat("<br>")
+      cat('\n', '<br>', '\n\n')
+    }
+    
+  
+  }
+
+```
+
+
+
+
+```{r umap, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+ umap_names <- names(params$dt$parameters[[params$dt$seurat_selected]])[str_detect(names(params$dt$parameters[[params$dt$seurat_selected]]), "umap")]
+
+  seu <- params$dt$seurat
+  Idents(seu) <- params$dt$seurat_selected
+  
+  if(length(umap_names) > 0){
+    
+    cat("## umap {.tabset} \n")
+
+    for(umap in umap_names){
+      
+       cat(paste0("### ", umap, "\n"))
+       cat("<br>")
+       
+       cat(paste0("<strong>PCA used</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[umap]]["pca"], " <br>"))
+       cat(paste0("<strong>Number of PCs</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[umap]]["npcs"], " <br>"))
+       cat(paste0("<strong>Number of neighbors</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[umap]]["neig"], " <br><br>"))
+       
+       cat("<br>")
+       cat("<br>")
+       
+       print(DimPlot(seu, reduction = umap))
+      
+      cat("<br>")
+      cat('\n', '<br>', '\n\n')
+    }
+    
+  
+  }
+
+```
+
+
+
+
+```{r clustering, echo=FALSE, message = FALSE, warning=FALSE, results='asis'}
+
+ clust_names <- names(params$dt$parameters[[params$dt$seurat_selected]])[str_detect(names(params$dt$parameters[[params$dt$seurat_selected]]), "clust")]
+
+  seu <- params$dt$seurat
+  Idents(seu) <- clust_names
+  
+  if(length(clust_names) > 0){
+    
+    cat("## Clustering {.tabset} \n")
+
+    for(clust in clust_names){
+      
+       cat(paste0("### ", clust, "\n"))
+       cat("<br>")
+       
+       cat(paste0("<strong>PCA used</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[clust]]["pca"], " <br>"))
+       cat(paste0("<strong>Number of PCs</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[clust]]["npcs"], " <br>"))
+       cat(paste0("<strong>Method</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[clust]]["method"], " <br>"))
+       cat(paste0("<strong>Resolution</strong> : " , params$dt$parameters[[params$dt$seurat_selected]][[clust]]["res"], " <br><br>"))
+       
+       cat("<br>")
+       cat("<br>")
+       
+       print(DimPlot(seu, group.by = clust, label = T))
+      
+      cat("<br>")
+      cat('\n', '<br>', '\n\n')
+    }
+    
+  
+  }
+
+```
+
+
+
+
+<!-- # Variables Genes -->
+<!-- ```{r, echo=FALSE, message = FALSE, warning=FALSE} -->
+
+<!-- ####Variable genes -->
+<!-- print(params$dt$parameters[[params$dt$seurat_selected]]) -->
+<!-- #varGeneMethod <- params$dt$parameters[[params$dt$seurat_selected]]["varGenes"] -->
+<!-- #print(varGeneMethod) -->
+<!-- print("sfasfasasag") -->
+<!-- # varGeneMethod <- params$dt$parameters[[params$dt$seurat_selected]]["varGeneMethod"] -->
+<!-- #  varGeneNum <- params$dt$parameters[[params$dt$seurat_selected]]["varGeneNum"]  -->
+<!-- #   -->
+<!-- # cat("Selected method to find Variables genes: ",varGeneMethod ) -->
+<!-- # cat("Chosen the number of variable genes: ",varGeneNum ) -->
+<!-- #  -->
+<!-- # #  print(varGeneMethod) -->
+<!-- #  -->
+<!-- # # print(varGeneNum) -->
+<!-- #  -->
+<!-- #  seu_temp <- FindVariableFeatures(seu_obj,  -->
+<!-- #                                         selection.method = varGeneMethod,  -->
+<!-- #                                         nfeatures = varGeneNum) -->
+<!-- # #problem is here -->
+<!-- #  vg <- VariableFeatures(seu_temp) -->
+<!-- #   -->
+<!-- #  #print(length(vg)) -->
+<!-- #   -->
+<!-- #  Idents(seu_temp) <- "mean" -->
+<!-- # # Calculate mean expression of variable genes -->
+<!-- # df_mean <- data.frame(row.names = VariableFeatures(seu_temp),  -->
+<!-- #                       mean = AverageExpression(seu_temp, assays = Assays(seu_temp)[1],  -->
+<!-- #                                                features = VariableFeatures(seu_temp))) -->
+<!-- #  -->
+<!-- # df_mean <- round(df_mean, 2) -->
+<!-- #  -->
+<!-- # # Recuperate perc expr from dotplot function of variable genes -->
+<!-- # perc <- DotPlot(seu_temp, features =  VariableFeatures(seu_temp), assay = Assays(seu_temp)[1]) -->
+<!-- # perc$data <- perc$data[,c("features.plot","id","pct.exp")] -->
+<!-- #  -->
+<!-- # perc <- as.data.frame(cast(perc$data, features.plot ~ id)) -->
+<!-- # rownames(perc) <- perc$features.plot -->
+<!-- # perc$features.plot <- NULL -->
+<!-- # perc = round(as.data.frame(perc),2) -->
+<!-- # colnames(perc) <- "pct.cells.express" -->
+<!-- #  -->
+<!-- #  -->
+<!-- # df <- merge(df_mean, perc, by=0, all=TRUE)  -->
+<!-- #  -->
+<!-- # rownames(df) <- df$Row.names -->
+<!-- # df$Row.names <- NULL -->
+<!-- #  -->
+<!-- #  -->
+<!-- # # Recuperate value of method used for variable genes -->
+<!-- # df_method <- data.frame(row.names = VariableFeatures(seu_temp), -->
+<!-- #                         HVFInfo(seu_temp)[VariableFeatures(seu_temp),3]) -->
+<!-- #  -->
+<!-- # colnames(df_method) <- colnames(HVFInfo(seu_temp))[3] -->
+<!-- #  -->
+<!-- # df_method <- round(df_method, 2) -->
+<!-- #  -->
+<!-- # #head(df_method) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # df <- merge(df, df_method, by=0, all=TRUE)  -->
+<!-- #  -->
+<!-- # rownames(df) <- df$Row.names -->
+<!-- # df$Row.names <- NULL -->
+<!-- #  -->
+<!-- # df <- df[order(-df[,ncol(df)]),] -->
+<!-- #  -->
+<!-- #  -->
+<!-- # head(df) -->
+<!-- #  -->
+<!-- # top <- head(VariableFeatures(seu_temp), 15) -->
+<!-- #  -->
+<!-- # LabelPoints(VariableFeaturePlot(seu_temp, selection.method = as.character(varGeneMethod)), points = top, repel = TRUE) -->
+<!-- #  -->
+<!-- # #print(names(df)) -->
+<!-- #  -->
+
+<!-- ``` -->
+
+
+<!-- # Variables Genes -->
+<!-- ```{r, echo=FALSE, message = FALSE, warning=FALSE} -->
+
+<!-- ####Variable genes -->
+
+<!-- varGeneMethod <- params$dt$parameters[[params$dt$seurat_selected]]["varGeneMethod"] -->
+<!--  varGeneNum <- params$dt$parameters[[params$dt$seurat_selected]]["varGeneNum"]  -->
+
+<!-- cat("Selected method to find Variables genes: ",varGeneMethod ) -->
+<!-- cat("Chosen the number of variable genes: ",varGeneNum ) -->
+
+<!-- #  print(varGeneMethod) -->
+
+<!-- # print(varGeneNum) -->
+
+<!--  seu_temp <- FindVariableFeatures(seu_obj,  -->
+<!--                                         selection.method = varGeneMethod,  -->
+<!--                                         nfeatures = varGeneNum) -->
+<!-- #problem is here -->
+<!--  vg <- VariableFeatures(seu_temp) -->
+
+<!--  #print(length(vg)) -->
+
+<!--  Idents(seu_temp) <- "mean" -->
+<!-- # Calculate mean expression of variable genes -->
+<!-- df_mean <- data.frame(row.names = VariableFeatures(seu_temp),  -->
+<!--                       mean = AverageExpression(seu_temp, assays = Assays(seu_temp)[1],  -->
+<!--                                                features = VariableFeatures(seu_temp))) -->
+
+<!-- df_mean <- round(df_mean, 2) -->
+
+<!-- # Recuperate perc expr from dotplot function of variable genes -->
+<!-- perc <- DotPlot(seu_temp, features =  VariableFeatures(seu_temp), assay = Assays(seu_temp)[1]) -->
+<!-- perc$data <- perc$data[,c("features.plot","id","pct.exp")] -->
+
+<!-- perc <- as.data.frame(cast(perc$data, features.plot ~ id)) -->
+<!-- rownames(perc) <- perc$features.plot -->
+<!-- perc$features.plot <- NULL -->
+<!-- perc = round(as.data.frame(perc),2) -->
+<!-- colnames(perc) <- "pct.cells.express" -->
+
+
+<!-- df <- merge(df_mean, perc, by=0, all=TRUE)  -->
+
+<!-- rownames(df) <- df$Row.names -->
+<!-- df$Row.names <- NULL -->
+
+
+<!-- # Recuperate value of method used for variable genes -->
+<!-- df_method <- data.frame(row.names = VariableFeatures(seu_temp), -->
+<!--                         HVFInfo(seu_temp)[VariableFeatures(seu_temp),3]) -->
+
+<!-- colnames(df_method) <- colnames(HVFInfo(seu_temp))[3] -->
+
+<!-- df_method <- round(df_method, 2) -->
+
+<!-- #head(df_method) -->
+
+
+<!-- df <- merge(df, df_method, by=0, all=TRUE)  -->
+
+<!-- rownames(df) <- df$Row.names -->
+<!-- df$Row.names <- NULL -->
+
+<!-- df <- df[order(-df[,ncol(df)]),] -->
+
+
+<!-- head(df) -->
+
+<!-- top <- head(VariableFeatures(seu_temp), 15) -->
+
+<!-- LabelPoints(VariableFeaturePlot(seu_temp, selection.method = as.character(varGeneMethod)), points = top, repel = TRUE) -->
+
+<!-- #print(names(df)) -->
+
+
+<!-- ``` -->
+
+<!-- # PCA -->
+<!-- ```{r, echo=FALSE, message = FALSE, warning=FALSE} -->
+<!--  ############################# starting PCA -->
+
+<!-- list_vg <- params$dt$parameters[[params$dt$seurat_selected]]["list_vg"] -->
+<!-- cat("Chosen list of variable gene: ", list_vg) -->
+
+<!-- nb_pca <- params$dt$parameters[[params$dt$seurat_selected]]["nb_pca"]  -->
+<!-- cat("Number of PCs calculated:", nb_pca) -->
+
+<!-- pca_name <- params$dt$parameters[[params$dt$seurat_selected]]["pca_name"] -->
+<!-- cat("PCA name: ", pca_name) -->
+
+<!-- cat("Elobow plot to choose number of PCs..") -->
+<!-- #elbow plot -->
+<!-- ElbowPlot(seu_obj, ndims = nb_pca, reduction = "pca") -->
+
+
+<!-- ##correlation -->
+<!-- #still needed to catch -->
+<!-- Y_axix <- "nCount_GENE" # colnames(seu_object@meta.data) -->
+
+<!-- X_axix <- "PC_1" #comes from here -->
+<!-- pc_comp_heatmap <- "PC_1" -->
+
+<!-- reduct_type <- "pca" -->
+<!-- cor = cor(FetchData(seu_obj, vars = X_axix),  -->
+<!--           FetchData(seu_obj, vars = Y_axix), method="spearman") -->
+
+
+<!-- cat("PCA/Metadata correlation") -->
+<!-- FeatureScatter(seu_obj, feature1 = X_axix,  -->
+<!--                feature2 = Y_axix, group.by = 'orig.ident',  pt.size =0.5) + -->
+<!--       theme(legend.position="none") + -->
+<!--       ggtitle(paste0("Spearman correlation : ", round(cor,2))) -->
+
+
+
+
+<!-- cat("PCs heatmap") -->
+<!-- DimHeatmap(seu_obj, reduction = reduct_type, -->
+<!--            dims = as.numeric(pc_comp_heatmap), cells = 500, balanced = TRUE) -->
+
+
+
+
+<!-- numericCol <- colnames(select_if(seu_obj@meta.data, is.numeric)) -->
+<!-- nbPCACol <- colnames(Embeddings(seu_obj, reduction = "pca")) -->
+
+<!-- df <- Embeddings(seu_obj, reduction = "pca")[,1:20] -->
+<!-- #head(df) -->
+<!-- #colnames(select_if(seu_obj@meta.data, is.numeric)) -->
+
+<!-- df <- cbind(df, seu_obj@meta.data[,numericCol]) -->
+
+<!-- df <- cor(df, method = "spearman") -->
+
+<!-- df <- df[numericCol,nbPCACol[1:20]] -->
+
+<!-- cat("Correlation heatmap") -->
+<!-- corrplot(df, tl.col = "black", tl.srt = 45, type = "full") -->
+
+
+
+
+<!-- ``` -->
+
+
+<!-- # TSNE and UMAP -->
+<!-- ```{r, echo=FALSE, message = FALSE, warning=FALSE} -->
+
+<!-- ##################TNA and UMAP -->
+<!-- pca_selected_tsne <- params$dt$parameters[[params$dt$seurat_selected]]["pca_selected_tsne"]  -->
+<!-- nbrDimension <- params$dt$parameters[[params$dt$seurat_selected]]["nbrDimension"] -->
+<!-- nb_perp_tsne <- params$dt$parameters[[params$dt$seurat_selected]]["nb_perp_tsne"] -->
+
+<!--  # for(i in 1:length(params$dt$parameters[[params$dt$seurat_selected]])){ -->
+<!--  #   print(params$dt$parameters[[params$dt$seurat_selected]][i]) -->
+<!--  #    -->
+<!--  # } -->
+
+<!-- tsne_name <-params$dt$parameters[[params$dt$seurat_selected]]["tsne_name"]  -->
+
+
+<!-- cat("tSNE name: ", tsne_name)  -->
+<!-- cat("Selected PCA: ", pca_selected_tsne)  -->
+<!-- cat("Number of PCs used: ", nbrDimension)  -->
+<!-- cat("Perplexity value used for TSNE: ", nb_perp_tsne) -->
+
+
+<!-- # print(pca_selected_tsne) -->
+<!-- # print(nbrDimension) -->
+<!-- # print(tsne_name) -->
+
+
+<!-- DimPlot(seu_obj, reduction = tsne_name,  -->
+<!--         group.by = 'orig.ident',  pt.size =0.5) + -->
+<!--       theme(legend.position="none") + -->
+<!--         xlab("tSNE_1")+ -->
+<!--         ylab("tSNE_2")+ -->
+<!--         ggtitle(tsne_name) -->
+
+<!-- #print("N neighbours:") -->
+
+
+<!-- nb_neig_umap <- params$dt$parameters[[params$dt$seurat_selected]]["nb_neig_umap"]  -->
+<!-- umap_name <- params$dt$parameters[[params$dt$seurat_selected]]["umap_name"]  -->
+<!-- pca_selected_umap <- params$dt$parameters[[params$dt$seurat_selected]]["pca_selected_umap"]  -->
+<!-- nbrDimension_umap <- params$dt$parameters[[params$dt$seurat_selected]]["nbrDimension_umap"] -->
+
+
+
+<!-- cat("UMAP name: ", umap_name)  -->
+<!-- cat("Selected PCA: ", pca_selected_umap)  -->
+<!-- cat("Number of PCs used: ", nbrDimension_umap)  -->
+<!-- cat("Number of Neighbors for UMAP: ", nb_neig_umap) -->
+
+
+<!-- DimPlot(seu_obj, reduction = umap_name,  -->
+<!--         group.by = 'orig.ident',  pt.size =0.5) + -->
+<!--   theme(legend.position="none") + -->
+<!--   xlab("UMAP_1")+ -->
+<!--   ylab("UMAP_2")+ -->
+<!--   ggtitle(umap_name) -->
+
+<!-- ``` -->
+
+<!-- # Clustering -->
+<!-- ```{r, echo=FALSE, message = FALSE, warning=FALSE} -->
+
+<!-- pca_clustering <- params$dt$parameters[[params$dt$seurat_selected]]["pca_clustering"]  -->
+<!-- cat("PCA used for clustering: ",pca_clustering, sep = "\t" ) -->
+<!-- nbrDimension_clus <- params$dt$parameters[[params$dt$seurat_selected]]["nbrDimension_clus"]  -->
+<!-- cat("Dimension used",nbrDimension_clus, sep = "\t" ) -->
+<!-- resolution <- params$dt$parameters[[params$dt$seurat_selected]]["resolution"]  -->
+<!-- cat("clustering resolution",resolution, sep = "\t" ) -->
+<!-- method_clustering <- params$dt$parameters[[params$dt$seurat_selected]]["method_clustering"]  -->
+<!-- cat("clustering method",method_clustering, sep = "\t" ) -->
+<!--  sel_dim_plot <- params$dt$parameters[[params$dt$seurat_selected]]["sel_dim_plot"]  -->
+<!-- cat("clustering visulization method",sel_dim_plot, sep = "\t" ) -->
+
+<!-- clus_name <- params$dt$parameters[[params$dt$seurat_selected]]["name"] -->
+<!-- # DimPlot(seu_object, reduction = 'pca',#input$all_rd, -->
+<!-- #         dims = c(as.numeric(PC_1),as.numeric(PC_1)), -->
+<!-- #         group.by = clus_name, pt.size =0.5, label = TRUE) -->
+<!--     #   } -->
+<!--     # }else{ -->
+<!--        DimPlot(seu_obj, reduction = 'pca',#input$all_rd, -->
+<!--                group.by = clus_name, -->
+<!--                pt.size =0.5, label = TRUE) -->
+
+
+<!-- #  -->
+<!-- # print(head(params$dt$seurat)) -->
+<!-- #  -->
+<!-- # seu_obj <- params$dt$seurat -->
+<!-- # print(head(seu_obj)) -->
+<!-- #  -->
+<!-- # print(params$dt$parameters[params$dt$seurat_selected]) -->
+<!-- #  -->
+<!-- # print(params$dt$parameters[[params$dt$seurat_selected]]["species"]) -->
+<!-- # print(params$dt$parameters[[params$dt$seurat_selected]]["min_cells"]) -->
+<!-- # print(params$dt$parameters[[params$dt$seurat_selected]]["min_features"]) -->
+<!-- #  -->
+
+
+
+<!-- #parameters for QC module -->
+<!-- # min1 <- params$dt$parameters[seu_obj]["min1"] -->
+<!-- # max1 <- params$dt$parameters[seu_obj]["max1"] -->
+<!-- # min2 <- params$dt$parameters[seu_obj]["min2"] -->
+<!-- # max2 <- params$dt$parameters[seu_obj]["max2"] -->
+<!-- # min3 <- params$dt$parameters[seu_obj]["min3"] -->
+<!-- # max3 <- params$dt$parameters[seu_obj]["max3"] -->
+<!-- # min4 <- params$dt$parameters[seu_obj]["min4"] -->
+<!-- # max4 <- params$dt$parameters[seu_obj]["max4"] -->
+
+<!-- #print(min1, min2, min3, min4) -->
+<!-- # VlnPlot(seu_obj, features = c("nCount_GENE", "nFeature_GENE", "percent.mito"), #, "percent.ribo"  -->
+<!-- #                             ncol = 2) -->
+<!-- #  -->
+<!-- #  seu_obj<-FindVariableFeatures(seu_obj, selection.method = "vst", nfeatures = 1000) -->
+<!-- # #  -->
+<!-- # #  -->
+<!-- #  montoro_objVF <- VariableFeaturePlot(seu_obj) -->
+<!-- #   -->
+<!-- #   montoro_objVF -->
+<!-- ``` -->
+
+
