@@ -12,7 +12,7 @@ ExportUI <- function(id) {
             width = 6, height = NULL,  
             solidHeader = TRUE, status = "primary", 
             radioButtons(ns("type_export"), label = "Choose the Type of Data to Export",
-                         c("Seurat Object RDS File" = "seurat", "List of Genes" = "genes", "List of Cells" = "cells"), inline = T),
+                         c("Seurat Object RDS File" = "seurat", "Cerebro .crb file" = "Cerebro", "List of Genes" = "genes", "List of Cells" = "cells"), inline = T),
             uiOutput(ns("select_export")),
             uiOutput(ns("button_export"))
             #Asif
@@ -53,6 +53,18 @@ Export <- function(input, output, session, rval) {
   
   
   getSeurat <- reactive({
+    
+    if(length(rval$seurat_list) > 0){
+      
+      seu <- rval$seurat_list
+      
+      return(seu)
+      
+    }
+    
+  })
+  
+  getCerebro <- reactive({
     
     if(length(rval$seurat_list) > 0){
       
@@ -131,6 +143,11 @@ Export <- function(input, output, session, rval) {
         selectInput(ns("select"), "Select", getCellsList(), selected = tail(getCellsList(),1), 
                     multiple = F, selectize = T)
         
+        }else if(input$type_export == "Cerebro"){
+          
+          selectInput(ns("select"), "Select", getCerebro(), selected = tail(getCerebro(),1), 
+                      multiple = F, selectize = T)
+          
         }
       }
       
@@ -164,7 +181,9 @@ Export <- function(input, output, session, rval) {
       
       if(input$type_export == "seurat"){
         paste(input$select, ".rds", sep = "")
-      }else{
+      } else if (input$type_export == "Cerebro") {
+        paste(input$select, ".crb", sep = "")
+      } else{
         paste(input$select, ".csv", sep = "")
       }
       
@@ -238,6 +257,31 @@ Export <- function(input, output, session, rval) {
         
         # Close modal progress when csv is saved
         remove_modal_spinner()
+        
+      } else if(input$type_export == "Cerebro"){
+        
+        # Create modal progress during csv creation and saving
+        show_modal_spinner(text = 'Creating a Cerebro file... Please wait...', spin = 'circle')
+        
+        if(input$select == rval$seurat_selected){
+          
+          exportFromSeurat(object = rval$seurat, groups = c('orig.ident', 'seurat_clusters'), nUMI = "nCount_RNA", nGene = "nFeature_RNA", experiment_name = "exportFromShIVA", organism = "mouse", file = "CerebroExportFromShiva.crb")
+          
+        }else{
+          
+          for(seu in rval$seurat_list){
+            
+            if(seu == input$select){
+              
+              saveRDS(readRDS(paste0(rval$output,"/",seu,".rds")), file)
+              
+            }
+            
+          }
+          
+        }
+        
+        # Close modal progress when csv is saved
         
       }
     }

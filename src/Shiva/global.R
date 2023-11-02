@@ -26,6 +26,7 @@ library(kableExtra)
 library(org.Mm.eg.db)
 library(clusterProfiler)
 library(org.Hs.eg.db)
+library(cerebroApp)
 
 options(shiny.maxRequestSize = 1000 * 1024^10)
 
