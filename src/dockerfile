@@ -1,4 +1,4 @@
-FROM rocker/rstudio:4.0.3
+FROM rocker/rstudio:4.3.0
 
 MAINTAINER Aussel Rudy (aussel@ciml.univ-mrs.fr)
 
