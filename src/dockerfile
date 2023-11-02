@@ -67,6 +67,7 @@ RUN R -e 'install.packages( "viridis")'
 
 RUN R -e 'library(devtools);devtools::install_github("JinmiaoChenLab/Rphenograph")'
 RUN R -e 'library(devtools);devtools::install_github("JinmiaoChenLab/ClusterX")'
+RUN R -e 'library(devtools);devtools::install_github("romanhaa/cerebroApp")'
 
 RUN R -e 'BiocManager::install("flowCore")'
 RUN R -e 'BiocManager::install("openCyto")'
