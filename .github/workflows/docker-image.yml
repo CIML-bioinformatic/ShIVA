@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y optipng \
 RUN apt-get update && apt-get install -y libudunits2-dev imagemagick libhdf5-dev libxml2-dev zlib1g-dev 
 RUN  apt-get update \ 
   && export DEBIAN_FRONTEND=noninteractive \
-## && apt-get -y install xorg openbox
   && apt-get -y install libx11-dev freeglut3 freeglut3-dev libpng-dev
 
 RUN R -e 'install.packages( "ade4")'
